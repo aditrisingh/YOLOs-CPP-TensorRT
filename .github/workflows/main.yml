@@ -6,12 +6,6 @@ on:
   pull_request:
     branches: ["main", "dev"]
   workflow_dispatch:
-    inputs:
-      run_gpu_tests:
-        description: "Run GPU tests (requires self-hosted runner with NVIDIA GPU)"
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -246,48 +240,57 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==========================================================================
-  # GPU Tests — Self-hosted runner with NVIDIA GPU (manual trigger only)
+  # GPU Tests — Self-hosted runner with NVIDIA GPU (ft-laptop)
+  # Full pipeline: download models → export ONNX → convert TRT → Python
+  # ground truth → build C++ → inference → compare results
   # ==========================================================================
   gpu-tests:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_gpu_tests == true }}
-    runs-on: [self-hosted, linux, gpu]
+    runs-on: [self-hosted, Linux, X64, gpu]
     needs: [build-gpu]
 
     strategy:
       fail-fast: false
       matrix:
         task:
-          - { id: "0", name: "detection" }
-          - { id: "1", name: "classification" }
-          - { id: "2", name: "segmentation" }
-          - { id: "3", name: "pose" }
-          - { id: "4", name: "obb" }
+          - { name: "detection",      script: "test_detection.sh" }
+          - { name: "classification", script: "test_classification.sh" }
+          - { name: "segmentation",   script: "test_segmentation.sh" }
+          - { name: "pose",           script: "test_pose.sh" }
+          - { name: "obb",            script: "test_obb.sh" }
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: false  # preserve cached models/engines between runs
 
       - name: Verify GPU availability
         run: |
-          echo "=== GPU Information ==="
-          nvidia-smi
+          echo "=== GPU ==="
+          nvidia-smi --query-gpu=name,driver_version,compute_cap,memory.total --format=csv,noheader
           echo ""
-          echo "=== CUDA Version ==="
-          nvcc --version || true
+          echo "=== CUDA ==="
+          nvcc --version
+          echo ""
+          echo "=== TensorRT ==="
+          trtexec --help 2>&1 | head -3 || dpkg -l | grep -i nvinfer | head -3
 
-      - name: Build test suite (${{ matrix.task.name }})
-        working-directory: tests
+      - name: Ensure Python tooling
         run: |
-          mkdir -p build && cd build
-          cmake .. \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DtestTask=${{ matrix.task.id }}
-          make -j$(nproc)
+          # Make sure uv is available (fast pip alternative)
+          if ! command -v uv &>/dev/null; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
+          echo "Python: $(python3 --version)"
+          echo "uv:     $(uv --version 2>/dev/null || echo 'will install on first use')"
 
       - name: Run ${{ matrix.task.name }} tests
-        working-directory: tests/build
+        working-directory: tests
+        timeout-minutes: 30
         run: |
-          ctest --output-on-failure --timeout 300
+          chmod +x ${{ matrix.task.script }}
+          bash ${{ matrix.task.script }}
 
       - name: Upload test results
         if: always()
