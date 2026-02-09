@@ -267,13 +267,13 @@ jobs:
       - name: Verify GPU availability
         run: |
           echo "=== GPU ==="
-          nvidia-smi --query-gpu=name,driver_version,compute_cap,memory.total --format=csv,noheader
+          nvidia-smi || { echo "::error::nvidia-smi failed — reboot may be needed (driver/library mismatch)"; exit 1; }
           echo ""
           echo "=== CUDA ==="
           nvcc --version
           echo ""
           echo "=== TensorRT ==="
-          trtexec --help 2>&1 | head -3 || dpkg -l | grep -i nvinfer | head -3
+          dpkg -l 2>/dev/null | grep -i nvinfer | head -5 || echo "(nvinfer package info not available)"
 
       - name: Ensure Python tooling
         run: |
