@@ -106,8 +106,12 @@ public:
         classNames_ = utils::getClassNames(labelsPath);
 
         // Derive input shape from engine if available (override user default)
-        if (inputShape_.width > 0 && inputShape_.height > 0) {
-            inputImageShape_ = inputShape_;
+        //if (inputShape_.width > 0 && inputShape_.height > 0) {
+            //inputImageShape_ = inputShape_;
+             cv::Size resized = getResizedShape();
+if (resized.width > 0 && resized.height > 0) {
+    inputImageShape_ = resized;
+
         }
 
         // Determine number of classes from output shape

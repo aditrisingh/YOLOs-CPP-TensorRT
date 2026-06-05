@@ -83,8 +83,10 @@ public:
         inferGpu(image);
 
         // Postprocess using cached scale/pad from GPU preprocess
-        return postprocess(image.size(), inputShape_, version_, confThreshold, iouThreshold);
-    }
+        //return postprocess(image.size(), inputShape_, version_, confThreshold, iouThreshold);
+         return postprocess(image.size(), getResizedShape(), version_, confThreshold, iouThreshold);    
+
+}
 
     /// @brief Draw detections on an image
     void drawDetections(cv::Mat& image, const std::vector<Detection>& detections) const {

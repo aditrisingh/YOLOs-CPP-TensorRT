@@ -149,11 +149,16 @@ set(COMMON_SOURCES
     src/core/trt_session_base.cpp
     src/tasks/detection.cpp
     src/tasks/classification.cpp
+    
 )
 
 # ============================================================================
 # Helper Function
 # ============================================================================
+set(COMMON_SOURCES
+    src/core/trt_session_base.cpp
+    src/core/MemoryArena.cpp
+)
 function(add_yolo_executable name source)
     add_executable(${name} ${source} ${COMMON_SOURCES})
     target_include_directories(${name} PRIVATE
@@ -175,6 +180,8 @@ function(add_yolo_executable name source)
             BUILD_RPATH "$ORIGIN"
             INSTALL_RPATH "$ORIGIN"
         )
+# Add MemoryArena
+list(APPEND SOURCES src/core/MemoryArena.cpp)
     endif()
 endfunction()
 
